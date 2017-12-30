@@ -1,3 +1,5 @@
+# based on https://github.com/mnielsen/neural-networks-and-deep-learning/blob/master/src/mnist_loader.py
+
 import sys
 
 if sys.version_info >= (3,0):

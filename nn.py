@@ -19,6 +19,7 @@ class SGD(object):
         self.learning_rate = learning_rate
         self.cost_fn = cost_fn
         self.a_fn = a_fn
+        self.done = 0
         
     def train(self, network, training_data):
 
@@ -45,8 +46,8 @@ class SGD(object):
             a = self.prop(network, sample[0])
             y = sample[1]
 
-            cost = self.cost_fn.fn(a, y)
-            sample_dw, sample_db = self.backprop(network, y - a)
+            cost = self.cost_fn.fn(a[-1], y)
+            sample_dw, sample_db = self.backprop(network, y - a[-1], a)
 #             delta_w += sample_dw
 #             delta_b += sample_db
 
@@ -58,19 +59,27 @@ class SGD(object):
 
     def prop(self, network, x):
 
-        h = x
+        a = [] # activations
+        a.append(x)
         for l in xrange(network.num_layers - 1):
-            z = (network.weights[l]).dot(h) + network.biases[l]
-            a = network.activation_fn(z)
-            h = a
+            z = (network.weights[l]).dot(a[l]) + network.biases[l]
+            a.append(network.activation_fn(z))
 
-        return h
+        return a
 
-    def backprop(self, network, d):
-        print(d)
+    def backprop(self, network, d, a):
+
+        dw = [np.zeros(w.shape) for w in network.weights]
+        db = [np.zeros(b.shape) for b in network.biases]
+        # 1
+        t1 = d*self.a_fn_prime(a[1])
+        db[1] = t1
+        dw[1] = a[1]*t1
+        # 2
+        
         return 1,2
 
-    def a_fn__prime(z):
+    def a_fn_prime(z):
 
         a = self.a_fn(z)
         return a*(1 - a)

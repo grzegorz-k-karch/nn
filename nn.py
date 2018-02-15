@@ -4,15 +4,17 @@ import mnist_loader as mloader
 
 ## keep training separated from network
 
+#cost
 class CrossEntropyCost(object):
 
     @staticmethod
     def fn(a, y):
         return 0.5*np.linalg.norm(a-y)**2
 
-class SGD(object):
+#optimizer
+class sgd(object):
 
-    #-------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------
     def __init__(self, a_fn, num_epochs, batch_size, learning_rate, cost_fn):
 
         self.num_epochs = num_epochs
@@ -21,15 +23,15 @@ class SGD(object):
         self.cost_fn = cost_fn
         self.a_fn = a_fn
         self.done = 0
-        
-    #-------------------------------------------------------------------------        
+
+    #-------------------------------------------------------------------------
     def train(self, network, training_data):
 
         for i in range(self.num_epochs):
 
             random.shuffle(training_data)
             num_batches = len(training_data)//self.batch_size
-            
+
             for j in range(num_batches):
 
                 start = j*self.batch_size
@@ -45,7 +47,7 @@ class SGD(object):
         batch_db = [np.zeros(b.shape) for b in network.biases]
 
         cost = 0.0
-        
+
         for sample in batch:
 
             yp, zs = self.prop(network, sample[0])
@@ -63,7 +65,7 @@ class SGD(object):
     #-------------------------------------------------------------------------
     def prop(self, network, x):
 
-        zs = [] 
+        zs = []
         a = x[:]
         for l in xrange(network.num_layers - 1):
             z = (network.weights[l]).dot(a) + network.biases[l]
@@ -77,30 +79,30 @@ class SGD(object):
     def backprop(self, network, d, zs):
 
         s = d
-        
+
         dw = [np.zeros(w.shape) for w in network.weights]
         db = [np.zeros(b.shape) for b in network.biases]
         # 1
         a = s*self.a_fn_prime(zs[1])
         db[1] = a # bias just gets the value
         dw[1] = network.weights[1]*a
-        
+
         s = network.weights[1].transpose().dot(a)
 
         # 2
         a = s*self.a_fn_prime(zs[0])
         db[0] = a
         dw[0] = network.weights[0]*a
-                
+
         return dw, db
 
-    #-------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------
     def a_fn_prime(self, z):
 
         a = self.a_fn(z)
         return a*(1 - a)
 
-    #-------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------
     def test(self, network, test_data):
 
 
@@ -108,14 +110,14 @@ class SGD(object):
         for i in range(len(test_data)):
 
             sample = test_data[i]
-            
+
             yp, _ = self.prop(network, sample[0])
             cost += self.cost_fn.fn(yp, sample[1])
-                        
+
         return cost/len(test_data)
 
-
-class Network2(object):
+#model
+class mlp(object):
 
     #-------------------------------------------------------------------------
     def __init__(self, graph, graph_initialization=None):
@@ -123,38 +125,63 @@ class Network2(object):
         # [784, 30, 10]
         self.graph = graph
         self.num_layers = len(graph)
-        
+
         if graph_initialization is not None:
-
             self.weights, self.biases = graph_initialization(graph)
-            
         else:
-
             self.normalized_weights()
-            
+
     #-------------------------------------------------------------------------
     def normalized_weights(self):
 
-        self.biases = [np.random.randn(y, 1) for y in self.graph[1:]] 
+        self.biases = [np.random.randn(y, 1) for y in self.graph[1:]]
         self.weights = [np.random.randn(y, x)/np.sqrt(x) \
                         for x, y in zip(self.graph[:-1], self.graph[1:])]
 
-    #-------------------------------------------------------------------------        
+    #-------------------------------------------------------------------------
     def activation_fn(self, z):
 
         return 1/(1 + np.exp(-z))
-    
-    
-                       
-training_data, validation_data, test_data = mloader.load_data("data/mnist.pkl.gz")
 
-network = Network2([784, 30, 10])
+    #-------------------------------------------------------------------------
+    def feedforward(self, sample):
 
-# training = SGD(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=CrossEntropyCost)
-training = SGD(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.0, cost_fn=CrossEntropyCost)
+        x = sample[0]
+        a = x[:]
+        for l in range(network.num_layers - 1):
+            z = (network.weights[l]).dot(a) + network.biases[l]
+            a = network.activation_fn(z)
+
+        return a
+        
+
+# dataset
+training_data, validation_data, test_data = mloader.load_data("/home/gkarch/data/mnist.pkl.gz")
+
+network = mlp([784, 30, 10])
+
+output = network.feedforward(training_data[0])
+print("output:\n")
+print(output)
+print("\n")
+
+digits = [x for x in range(10)]
+
+ref_output = training_data[0][1]
+print("ref output %s\n" % digits[np.argmax(ref_output)])
+print(ref_output)
+print("\n")
+
+cost = CrossEntropyCost()
+c = cost.fn(ref_output, output)
+print("cost\n")
+print(c)
+print("\n")
+
+# # training = sgd(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=CrossEntropyCost)
+# training = sgd(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.1, cost_fn=CrossEntropyCost)
 
 
-training.train(network, training_data[:5000])
+# training.train(network, training_data[:500])
 
-print(training.test(network, test_data))
-
+# print(training.test(network, test_data))

@@ -54,6 +54,8 @@ class mlp(object):
 
         x = sample[0]
         a = x[:]
+        if zs is not None:
+            zs.append(a)
 
         for l in range(self.num_layers - 1):
             z = (self.weights[l]).dot(a) + self.biases[l]
@@ -67,11 +69,21 @@ class mlp(object):
     def feed_backward(self, cost_prime, zs):
 
         d = cost_prime
+        dw = [np.zeros(w.shape) for w in self.weights]
+        db = [np.zeros(b.shape) for b in self.biases]
+        
         for l in range(self.num_layers - 1):
             # pass activation function
             # http://neuralnetworksanddeeplearning.com/chap2.html <- BP1
             print(str(len(d)) + " <> " + str(len(self.a_fn_prime(zs[-1-l]))))
-            d = d*self.a_fn_prime(zs[-1-l])
+
+            d = d*self.a_fn_prime(zs[-1-l]) # element-wise multiplication
+            db[-1-l] = d
+            dw[-1-l] = zs[-1-l-1].dot(d.transpose())
+            # propagate the error further
+            d = ((self.weights[-1-l]).transpose()).dot(d)
+
+            
             print(str(len(d)) + " < ")
         
 

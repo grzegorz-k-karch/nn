@@ -5,10 +5,10 @@ import mnist_loader as mloader
 ## keep training separated from network
 
 #cost
-class CrossEntropyCost(object):
+class mse(object):
 
     @staticmethod
-    def fn(a, y):
+    def eval(a, y):
         return 0.5*np.linalg.norm(a-y)**2
 
 #optimizer
@@ -97,12 +97,6 @@ class sgd(object):
         return dw, db
 
     #-------------------------------------------------------------------------
-    def a_fn_prime(self, z):
-
-        a = self.a_fn(z)
-        return a*(1 - a)
-
-    #-------------------------------------------------------------------------
     def test(self, network, test_data):
 
 
@@ -144,23 +138,38 @@ class mlp(object):
         return 1/(1 + np.exp(-z))
 
     #-------------------------------------------------------------------------
-    def feedforward(self, sample):
+    def a_fn_prime(self, z):
+
+        a = self.a_fn(z)
+        return a*(1 - a)
+
+    #-------------------------------------------------------------------------
+    def feed_forward(self, sample):
 
         x = sample[0]
         a = x[:]
-        for l in range(network.num_layers - 1):
-            z = (network.weights[l]).dot(a) + network.biases[l]
-            a = network.activation_fn(z)
+        for l in range(self.num_layers - 1):
+            z = (self.weights[l]).dot(a) + self.biases[l]
+            a = self.activation_fn(z)
 
         return a
+
+    #-------------------------------------------------------------------------
+    def feed_backward(self, cost):
+
+        d = cost
+        for l in range(self.num_layers - 1):
+            # pass activation function
+            # http://neuralnetworksanddeeplearning.com/chap2.html <- BP1
+     
         
 
 # dataset
-training_data, validation_data, test_data = mloader.load_data("/home/gkarch/data/mnist.pkl.gz")
+training_data, validation_data, test_data = mnist_loader.load_data("/home/gkarch/data/mnist.pkl.gz")
 
 network = mlp([784, 30, 10])
 
-output = network.feedforward(training_data[0])
+output = network.feed_forward(training_data[0])
 print("output:\n")
 print(output)
 print("\n")
@@ -172,14 +181,17 @@ print("ref output %s\n" % digits[np.argmax(ref_output)])
 print(ref_output)
 print("\n")
 
-cost = CrossEntropyCost()
-c = cost.fn(ref_output, output)
+cost_fn = mse()
+cost = cost_fn.eval(ref_output, output)
 print("cost\n")
-print(c)
+print(cost)
 print("\n")
 
-# # training = sgd(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=CrossEntropyCost)
-# training = sgd(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.1, cost_fn=CrossEntropyCost)
+network.feed_backward(output)
+
+
+# # training = sgd(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=mse)
+# training = sgd(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.1, cost_fn=mse)
 
 
 # training.train(network, training_data[:500])

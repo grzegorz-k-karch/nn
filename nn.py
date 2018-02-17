@@ -1,6 +1,6 @@
 import numpy as np
 import random
-import mnist_loader as mloader
+import mnist_loader
 
 ## keep training separated from network
 
@@ -8,8 +8,113 @@ import mnist_loader as mloader
 class mse(object):
 
     @staticmethod
-    def eval(a, y):
+    def eval(y, a):
         return 0.5*np.linalg.norm(a-y)**2
+
+    @staticmethod
+    def eval_prime(y, a):
+        return y - a
+
+
+#model
+class mlp(object):
+
+    #-------------------------------------------------------------------------
+    def __init__(self, graph, graph_initialization=None):
+
+        # [784, 30, 10]
+        self.graph = graph
+        self.num_layers = len(graph)
+
+        if graph_initialization is not None:
+            self.weights, self.biases = graph_initialization(graph)
+        else:
+            self.normalized_weights()
+
+    #-------------------------------------------------------------------------
+    def normalized_weights(self):
+
+        self.biases = [np.random.randn(y, 1) for y in self.graph[1:]]
+        self.weights = [np.random.randn(y, x)/np.sqrt(x) \
+                        for x, y in zip(self.graph[:-1], self.graph[1:])]
+
+    #-------------------------------------------------------------------------
+    def activation_fn(self, z):
+
+        return 1/(1 + np.exp(-z))
+
+    #-------------------------------------------------------------------------
+    def a_fn_prime(self, z):
+
+        a = self.activation_fn(z)
+        return a*(1 - a)
+
+    #-------------------------------------------------------------------------
+    def feed_forward(self, sample, zs=None):
+
+        x = sample[0]
+        a = x[:]
+
+        for l in range(self.num_layers - 1):
+            z = (self.weights[l]).dot(a) + self.biases[l]
+            a = self.activation_fn(z)
+            if zs is not None:
+                zs.append(z)
+
+        return a
+
+    #-------------------------------------------------------------------------
+    def feed_backward(self, cost_prime, zs):
+
+        d = cost_prime
+        for l in range(self.num_layers - 1):
+            # pass activation function
+            # http://neuralnetworksanddeeplearning.com/chap2.html <- BP1
+            print(str(len(d)) + " <> " + str(len(self.a_fn_prime(zs[-1-l]))))
+            d = d*self.a_fn_prime(zs[-1-l])
+            print(str(len(d)) + " < ")
+        
+
+# dataset
+training_data, validation_data, test_data = mnist_loader.load_data("/home/gkk/data/mnist.pkl.gz")
+
+network = mlp([784, 30, 10])
+
+zs = []
+
+output = network.feed_forward(training_data[0], zs)
+print("output:\n")
+print(output)
+print("\n")
+
+print("zs:\n")
+print(zs)
+print("\n")
+
+digits = [x for x in range(10)]
+
+ref_output = training_data[0][1]
+print("ref output %s\n" % digits[np.argmax(ref_output)])
+print(ref_output)
+print("\n")
+
+cost_fn = mse()
+cost = cost_fn.eval(ref_output, output)
+print("cost\n")
+print(cost)
+print("\n")
+
+network.feed_backward(cost_fn.eval_prime(ref_output, output), zs)
+
+
+# # training = sgd(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=mse)
+# training = sgd(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.1, cost_fn=mse)
+
+
+# training.train(network, training_data[:500])
+
+# print(training.test(network, test_data))
+
 
 #optimizer
 class sgd(object):
@@ -109,91 +214,3 @@ class sgd(object):
             cost += self.cost_fn.fn(yp, sample[1])
 
         return cost/len(test_data)
-
-#model
-class mlp(object):
-
-    #-------------------------------------------------------------------------
-    def __init__(self, graph, graph_initialization=None):
-
-        # [784, 30, 10]
-        self.graph = graph
-        self.num_layers = len(graph)
-
-        if graph_initialization is not None:
-            self.weights, self.biases = graph_initialization(graph)
-        else:
-            self.normalized_weights()
-
-    #-------------------------------------------------------------------------
-    def normalized_weights(self):
-
-        self.biases = [np.random.randn(y, 1) for y in self.graph[1:]]
-        self.weights = [np.random.randn(y, x)/np.sqrt(x) \
-                        for x, y in zip(self.graph[:-1], self.graph[1:])]
-
-    #-------------------------------------------------------------------------
-    def activation_fn(self, z):
-
-        return 1/(1 + np.exp(-z))
-
-    #-------------------------------------------------------------------------
-    def a_fn_prime(self, z):
-
-        a = self.a_fn(z)
-        return a*(1 - a)
-
-    #-------------------------------------------------------------------------
-    def feed_forward(self, sample):
-
-        x = sample[0]
-        a = x[:]
-        for l in range(self.num_layers - 1):
-            z = (self.weights[l]).dot(a) + self.biases[l]
-            a = self.activation_fn(z)
-
-        return a
-
-    #-------------------------------------------------------------------------
-    def feed_backward(self, cost):
-
-        d = cost
-        for l in range(self.num_layers - 1):
-            # pass activation function
-            # http://neuralnetworksanddeeplearning.com/chap2.html <- BP1
-     
-        
-
-# dataset
-training_data, validation_data, test_data = mnist_loader.load_data("/home/gkarch/data/mnist.pkl.gz")
-
-network = mlp([784, 30, 10])
-
-output = network.feed_forward(training_data[0])
-print("output:\n")
-print(output)
-print("\n")
-
-digits = [x for x in range(10)]
-
-ref_output = training_data[0][1]
-print("ref output %s\n" % digits[np.argmax(ref_output)])
-print(ref_output)
-print("\n")
-
-cost_fn = mse()
-cost = cost_fn.eval(ref_output, output)
-print("cost\n")
-print(cost)
-print("\n")
-
-network.feed_backward(output)
-
-
-# # training = sgd(num_epochs=30, batch_size=50, learning_rate=0.1, cost_fn=mse)
-# training = sgd(a_fn=network.activation_fn, num_epochs=1, batch_size=50, learning_rate=0.1, cost_fn=mse)
-
-
-# training.train(network, training_data[:500])
-
-# print(training.test(network, test_data))
